@@ -4,6 +4,7 @@
 # License::   LGPL
 
 require 'set'
+require 'jieba_rb'
 
 module ClassifierReborn
   module Hasher
@@ -21,14 +22,27 @@ module ClassifierReborn
 
     # Return a word hash without extra punctuation or short symbols, just stemmed words
     def clean_word_hash(str, language = 'en')
-      word_hash_for_words str.gsub(/[^\p{WORD}\s]/, '').downcase.split, language
+      if language == 'cn'
+        seg = JiebaRb::Segment.new mode: :hmm
+        words = seg.cut(str)
+        word_hash_for_words words, language
+      else
+        word_hash_for_words str.gsub(/[^\p{WORD}\s]/, '').downcase.split, language
+      end
     end
 
     def word_hash_for_words(words, language = 'en')
       d = Hash.new(0)
+      word_len = language == 'cn' ? 1 : 2
       words.each do |word|
-        d[word.stem.intern] += 1 if word.length > 2 && !STOPWORDS[language].include?(word)
+        next unless word.strip.length > word_len
+        if language == 'cn'
+          d[word.intern] += 1 if word.length > word_len && !STOPWORDS[language].include?(word)
+        else
+          d[word.stem.intern] += 1 if word.length > word_len && !STOPWORDS[language].include?(word)
+        end
       end
+      # p words, language, d
       d
     end
 
